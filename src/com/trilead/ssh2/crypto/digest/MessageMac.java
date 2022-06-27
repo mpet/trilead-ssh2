@@ -10,12 +10,14 @@ import java.util.List;
 public final class MessageMac extends MAC {
 
 	private final Mac messageMac;
+	private boolean encryptThenMac = false;
 
 	public MessageMac(String type, byte[] key) {
 		super(type, key);
 
 		try {
 			messageMac = Mac.getInstance(Hmac.getHmac(type).getAlgorithm());
+			encryptThenMac = Hmac.getHmac(type).isEtm();
 			messageMac.init(new SecretKeySpec(key, type));
 		} catch (GeneralSecurityException ex) {
 			throw new IllegalArgumentException("Could not create Mac", ex);
@@ -63,24 +65,32 @@ public final class MessageMac extends MAC {
 	{
 		return messageMac.getMacLength();
 	}
-
+	
+	public final boolean isEncryptThenMac() 
+	{
+		return encryptThenMac;
+	}
 
 	private enum Hmac {
-		HMAC_MD5_96("hmac-md5-96", "HmacMD5", 16),
-		HMAC_MD5("hmac-md5", "HmacMD5", 16),
-		HMAC_SHA1_96("hmac-sha1-96", "HmacSHA1", 20),
-		HMAC_SHA1("hmac-sha1", "HmacSHA1", 20),
-		HMAC_SHA2_256("hmac-sha2-256", "HmacSHA256", 32),
-		HMAC_SHA2_512("hmac-sha2-512", "HmacSHA512", 64);
+		HMAC_MD5_96("hmac-md5-96", "HmacMD5", 16,false),
+		HMAC_MD5("hmac-md5", "HmacMD5", 16,false),
+		HMAC_SHA1_96("hmac-sha1-96", "HmacSHA1", 20,false),
+		HMAC_SHA1("hmac-sha1", "HmacSHA1", 20,false),
+		HMAC_SHA2_256("hmac-sha2-256", "HmacSHA256", 32,false),
+		HMAC_SHA2_512("hmac-sha2-512", "HmacSHA512", 64,false),
+		HMAC_SHA2_256_ETM("hmac-sha2-256-etm@openssh.com", "HmacSHA256", 32,true),
+		HMAC_SHA2_512_ETM("hmac-sha2-512-etm@openssh.com", "HmacSHA512", 64,true);
 
 		private String type;
 		private String algorithm;
 		private int length;
+		private boolean isEtm;
 
-		Hmac(String type, String algorithm, int length) {
+		Hmac(String type, String algorithm, int length,boolean isEtm) {
 			this.type = type;
 			this.algorithm = algorithm;
 			this.length = length;
+			this.isEtm = isEtm;
 		}
 
 		public String getType() {
@@ -93,6 +103,10 @@ public final class MessageMac extends MAC {
 
 		public int getLength() {
 			return length;
+		}
+		
+		public boolean isEtm() {
+			return isEtm;
 		}
 
 		private static Hmac getHmac(String type) {
